@@ -89,45 +89,14 @@ async function renderCard(member, isFronting) {
 
 async function renderCards(system) {
     // Fetch requests in parallel
-    let [fronting, members, systemInfo] = await Promise.all([
+    let [fronting, members] = await Promise.all([
         getFronters(system),
         getMembers(system),
-        getSystemInfo(system)
     ])
     
     // Separate the members
     members = separateMembers(fronting, members)
     delete fronting
-    
-    // System name container
-    const nameContainer = document.getElementById("name-container");
-    
-    // System Colour
-    let colour = systemInfo.color;
-
-    if (systemInfo.name != null) {
-        // Use system's name (if it has one)
-        let sysName = systemInfo.name;
-        sysName += " Fronter Display";
-
-        document.getElementById("tabname").innerHTML = sysName
-
-        // Add system colour to title (if it has one)
-        if (colour != null) {
-            nameContainer.innerHTML = `<h1><span class="title" style = "color: #${colour};"> ${systemInfo.name} </span> Fronter Display</h1>`
-        } else {
-            nameContainer.innerHTML = `<h1>${sysName}</h1>`
-        }
-    } else {
-        // Use systems ID as it's name as a fallback
-        document.getElementById("tabname").innerHTML = system + " Fronter Display"
-
-        if (colour != null) {
-            nameContainer.innerHTML = `<h1><code style = "color: #${colour};"> ${system} </code> Fronter Display</h1>`
-        } else {
-            nameContainer.innerHTML = `<h1><code> ${system} </code> Fronter Display</h1>`
-        }
-    }
     
     let html = ''
     for (const fronter of members.fronting) {
@@ -141,6 +110,37 @@ async function renderCards(system) {
     container.innerHTML = html;
     
     backButton()
+}
+
+async function updateTitles(system) {
+    let systemInfo = await getSystemInfo(system)
+    
+    const nameContainer = document.getElementById("name-container");
+    const tabName = document.getElementById('tabname')
+    
+    // If the system doesn't have a name, fallback to its ID
+    systemName = systemInfo.name == null ? systemInfo.id : systemInfo.name
+    
+    // Update the tab name
+    tabName.innerHTML = `${systemName} Fronter Display`
+    
+    // If the system doesn't have a name and is falling back to using its ID,
+    // wrap it in `<code>`
+    if (systemInfo.name == null) {
+        systemName = `<code>${systemInfo.id}</code>`
+    }
+    
+    // Change the name container (heading). This also colours the system name
+    // in the system's specified colour (if it has one).
+    nameContainer.innerHTML = `
+        <h1>
+            ${
+                systemInfo.color == null
+                    ? `${systemName}`
+                    : `<span style="color: #${systemInfo.color}">${systemName}</span>`
+            } Fronter Display
+        </h1>
+    `
 }
 
 // Function for displaying system ID input
@@ -172,7 +172,7 @@ function showInput(reason) {
 if (system != null & system != "") {
     // Display fronters for requested system
     container.innerHTML = `<code>Loading fronters...</code>`
-    renderCards(system);
+    Promise.all([updateTitles(system), renderCards(system)])
 }
 else {
     // Display system input
